@@ -20,4 +20,17 @@ extension VariableDeclSyntax {
     public var isVar: Bool {
         bindingSpecifier.tokenKind == .keyword(.var)
     }
+
+    /// Names of the accessors declared on the property (`get`, `set`, `willSet`, `didSet`, etc.).
+    /// A shorthand getter (`var x: Int { 0 }`) is reported as `get`.
+    public var accessorNames: [String] {
+        switch bindings.first?.accessorBlock?.accessors {
+        case let .accessors(accessors):
+            return accessors.map(\.accessorSpecifier.text)
+        case .getter:
+            return ["get"]
+        case nil:
+            return []
+        }
+    }
 }

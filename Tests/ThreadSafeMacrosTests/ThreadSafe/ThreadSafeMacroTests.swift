@@ -1,4 +1,4 @@
-import MacrosImpl
+import ThreadSafeMacrosImpl
 import SwiftSyntaxMacros
 import SwiftSyntaxMacrosTestSupport
 import XCTest
@@ -83,7 +83,7 @@ final class ThreadSafeMacroTests: XCTestCase {
             """,
             diagnostics: [
                 DiagnosticSpec(
-                    message: "Необходимо явно задать тип переменной после :",
+                    message: "The variable must have an explicit type annotation after ':'.",
                     line: 1,
                     column: 1
                 ),
@@ -104,7 +104,7 @@ final class ThreadSafeMacroTests: XCTestCase {
             """,
             diagnostics: [
                 DiagnosticSpec(
-                    message: "Необходимо явно задать тип переменной после :",
+                    message: "The variable must have an explicit type annotation after ':'.",
                     line: 1,
                     column: 1
                 ),
@@ -124,7 +124,7 @@ final class ThreadSafeMacroTests: XCTestCase {
             """,
             diagnostics: [
                 DiagnosticSpec(
-                    message: "@ThreadSafe используется только с variables.",
+                    message: "@ThreadSafe can only be used with variables.",
                     line: 1,
                     column: 1
                 ),
@@ -144,7 +144,61 @@ final class ThreadSafeMacroTests: XCTestCase {
             """,
             diagnostics: [
                 DiagnosticSpec(
-                    message: "Начальное значение переменной должно быть указано",
+                    message: "The variable must have an initial value.",
+                    line: 1,
+                    column: 1
+                ),
+            ],
+            macros: testMacros
+        )
+    }
+
+    func test_AccessorsAlreadyProvided_Diagnoses() throws {
+        assertMacroExpansion(
+            """
+            @ThreadSafe
+            public var result: Result<[Int], MockError> = .failure(MockError()) {
+                willSet {
+                    log("Will change to \\(newValue)")
+                }
+                didSet {
+                    log("Changed to \\(result)")
+                }
+            }
+            """,
+            expandedSource: """
+            public var result: Result<[Int], MockError> = .failure(MockError()) {
+                willSet {
+                    log("Will change to \\(newValue)")
+                }
+                didSet {
+                    log("Changed to \\(result)")
+                }
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "@ThreadSafe can't be used on a variable that already has accessors: willSet, didSet.",
+                    line: 1,
+                    column: 1
+                ),
+            ],
+            macros: testMacros
+        )
+    }
+
+    func test_ComputedProperty_Diagnoses() throws {
+        assertMacroExpansion(
+            """
+            @ThreadSafe
+            public var count: Int { 0 }
+            """,
+            expandedSource: """
+            public var count: Int { 0 }
+            """,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "@ThreadSafe can't be used on a variable that already has accessors: get.",
                     line: 1,
                     column: 1
                 ),

@@ -99,6 +99,11 @@ extension ThreadSafeMacro {
             context?.addDiagnostics(from: Error.notAVar, node: node)
             return nil
         }
+        let accessorNames = decl.accessorNames
+        guard accessorNames.isEmpty else {
+            context?.addDiagnostics(from: Error.accessorsAlreadyProvided(accessorNames), node: node)
+            return nil
+        }
         guard let type = decl.type?.type.trimmed else {
             context?.addDiagnostics(from: Error.typeNotProvided, node: node)
             return nil
@@ -121,10 +126,11 @@ extension ThreadSafeMacro {
 }
 
 extension ThreadSafeMacro {
-    enum Error: String, Swift.Error, DiagnosticMessage {
+    enum Error: Swift.Error, DiagnosticMessage {
         case notAVar
         case typeNotProvided
         case valueNotProvided
+        case accessorsAlreadyProvided(_ accessors: [String])
 
         var message: String {
             switch self {
@@ -134,11 +140,19 @@ extension ThreadSafeMacro {
                 return "The variable must have an explicit type annotation after ':'."
             case .valueNotProvided:
                 return "The variable must have an initial value."
+            case let .accessorsAlreadyProvided(accessors):
+                return "@ThreadSafe can't be used on a variable that already has accessors: \(accessors.joined(separator: ", "))."
             }
         }
 
         var diagnosticID: MessageID {
-            .init(domain: "ThreadSafeMacro", id: rawValue)
+            let id = switch self {
+            case .notAVar: "notAVar"
+            case .typeNotProvided: "typeNotProvided"
+            case .valueNotProvided: "valueNotProvided"
+            case .accessorsAlreadyProvided: "accessorsAlreadyProvided"
+            }
+            return MessageID(domain: "ThreadSafeMacro", id: id)
         }
 
         var severity: DiagnosticSeverity { .error }
