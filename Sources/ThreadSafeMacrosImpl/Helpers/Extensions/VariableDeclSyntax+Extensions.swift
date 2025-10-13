@@ -21,6 +21,10 @@ extension VariableDeclSyntax {
         bindingSpecifier.tokenKind == .keyword(.var)
     }
 
+    public var isUnowned: Bool {
+        modifiers.contains { $0.name.tokenKind == .keyword(.unowned) }
+    }
+
     /// Names of the accessors declared on the property (`get`, `set`, `willSet`, `didSet`, etc.).
     /// A shorthand getter (`var x: Int { 0 }`) is reported as `get`.
     public var accessorNames: [String] {

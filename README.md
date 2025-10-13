@@ -47,21 +47,22 @@ final class BankAccount: Sendable {
     @ThreadSafe var balance: Double = 0
     var transactions: [String] {
         get {
-            _transactions.lock.lock()
+            transactionsBackingLock.lock()
             defer {
-                _transactions.lock.unlock()
+                transactionsBackingLock.unlock()
             }
-            return _transactions.value
+            return transactionsBackingValue
         }
         _modify {
-            _transactions.lock.lock()
+            transactionsBackingLock.lock()
             defer {
-                _transactions.lock.unlock()
+                transactionsBackingLock.unlock()
             }
-            yield &_transactions.value
+            yield &transactionsBackingValue
         }
     }
-    private nonisolated(unsafe) var _transactions: (value: [String], lock: NSLock) = ([], NSLock())
+    private nonisolated(unsafe) var transactionsBackingValue: [String] = []
+    private let transactionsBackingLock = NSLock()
 
     init(balance: Double, transactions: [String]) {
         self.balance = balance
@@ -77,6 +78,33 @@ final class BankAccount: Sendable {
 }
 ```
 </details>
+
+---
+
+## Optionals, `weak` and `unowned`
+
+Optional properties don't need an explicit `= nil`, the macro adds it for you:
+
+```swift
+@ThreadSafe var token: String?
+@ThreadSafe weak var delegate: Delegate?
+```
+
+`weak`, `unowned` and `unowned(unsafe)` are carried over to the backing property, so the reference keeps the semantics you declared.
+
+An `unowned` reference has no default value, so set the backing property directly in `init`. Assigning through the property itself won't compile, since it's computed after expansion:
+
+```swift
+final class Child: Sendable {
+    @ThreadSafe unowned var parent: Parent
+
+    init(parent: Parent) {
+        parentBackingValue = parent
+    }
+}
+```
+
+`@ThreadSafe` can't be combined with accessors of your own (`willSet`, `didSet`, `get`, ...). The macro would replace them, so it reports an error instead.
 
 ---
 
@@ -195,7 +223,7 @@ This avoids test failures due to lock inequality while preserving concurrency gu
 Special thanks to:
 
 * [**Alexander Bodrov**](https://github.com/amidaleet) – for identifying and solving the `BUILD_LIBRARY_FOR_DISTRIBUTION` issue in `xcodebuild` with the updated version of SwiftSyntax.
-* **Vyacheslav Mirgorod** – for the idea to store the synchronization `NSLock` inside a tuple instead of using a wrapper class as in the original macro concept, which removed the need for extra imports at the macro usage site (when using the `NSLock`-based implementation).
+* **Vyacheslav Mirgorod** – for the idea to drop the wrapper class from the original macro concept and keep the lock right next to the value, which removed the need for extra imports at the macro usage site.
 
 ## License
 

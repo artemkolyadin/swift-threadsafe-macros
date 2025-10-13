@@ -17,24 +17,26 @@ final class ThreadSafeMacroTests: XCTestCase {
             expandedSource: """
             public var result: Result<[Int], MockError> {
                 get {
-                    _result.lock.lock()
+                    resultBackingLock.lock()
                     defer {
-                        _result.lock.unlock()
+                        resultBackingLock.unlock()
                     }
 
-                    return _result.value
+                    return resultBackingValue
                 }
                 _modify {
-                    _result.lock.lock()
+                    resultBackingLock.lock()
                     defer {
-                        _result.lock.unlock()
+                        resultBackingLock.unlock()
                     }
 
-                    yield &_result.value
+                    yield &resultBackingValue
                 }
             }
 
-            private nonisolated(unsafe) var _result: (value: Result<[Int], MockError>, lock: NSLock) = (.failure(MockError()), NSLock())
+            private nonisolated(unsafe) var resultBackingValue: Result<[Int], MockError> = .failure(MockError())
+
+            private let resultBackingLock = NSLock()
             """,
             macros: testMacros
         )
@@ -49,24 +51,264 @@ final class ThreadSafeMacroTests: XCTestCase {
             expandedSource: """
             public var result: Result<[Int], MockError> {
                 get {
-                    _result.lock.lock()
+                    resultBackingLock.lock()
                     defer {
-                        _result.lock.unlock()
+                        resultBackingLock.unlock()
                     }
 
-                    return _result.value
+                    return resultBackingValue
                 }
                 _modify {
-                    _result.lock.lock()
+                    resultBackingLock.lock()
                     defer {
-                        _result.lock.unlock()
+                        resultBackingLock.unlock()
                     }
 
-                    yield &_result.value
+                    yield &resultBackingValue
                 }
             }
 
-            private nonisolated(unsafe) var _result: (value: Result<[Int], MockError>, lock: NSLock) = (Result<[Int], MockError>.failure(MockError()), NSLock())
+            private nonisolated(unsafe) var resultBackingValue: Result<[Int], MockError> = Result<[Int], MockError>.failure(MockError())
+
+            private let resultBackingLock = NSLock()
+            """,
+            macros: testMacros
+        )
+    }
+
+    func test_WeakVariable_KeepsOwnership() throws {
+        assertMacroExpansion(
+            """
+            @ThreadSafe
+            public weak var delegate: Delegate? = nil
+            """,
+            expandedSource: """
+            public weak var delegate: Delegate? {
+                get {
+                    delegateBackingLock.lock()
+                    defer {
+                        delegateBackingLock.unlock()
+                    }
+
+                    return delegateBackingValue
+                }
+                _modify {
+                    delegateBackingLock.lock()
+                    defer {
+                        delegateBackingLock.unlock()
+                    }
+
+                    yield &delegateBackingValue
+                }
+            }
+
+            private nonisolated(unsafe) weak var delegateBackingValue: Delegate? = nil
+
+            private let delegateBackingLock = NSLock()
+            """,
+            macros: testMacros
+        )
+    }
+
+    func test_WeakVariable_WithoutInitializer_DefaultsToNil() throws {
+        assertMacroExpansion(
+            """
+            @ThreadSafe
+            public weak var delegate: Delegate?
+            """,
+            expandedSource: """
+            public weak var delegate: Delegate? {
+                get {
+                    delegateBackingLock.lock()
+                    defer {
+                        delegateBackingLock.unlock()
+                    }
+
+                    return delegateBackingValue
+                }
+                _modify {
+                    delegateBackingLock.lock()
+                    defer {
+                        delegateBackingLock.unlock()
+                    }
+
+                    yield &delegateBackingValue
+                }
+            }
+
+            private nonisolated(unsafe) weak var delegateBackingValue: Delegate? = nil
+
+            private let delegateBackingLock = NSLock()
+            """,
+            macros: testMacros
+        )
+    }
+
+    func test_WeakVariable_CustomInitialValue_KeepsOwnership() throws {
+        assertMacroExpansion(
+            """
+            @ThreadSafe
+            public weak var delegate: Delegate? = someDelegate
+            """,
+            expandedSource: """
+            public weak var delegate: Delegate? {
+                get {
+                    delegateBackingLock.lock()
+                    defer {
+                        delegateBackingLock.unlock()
+                    }
+
+                    return delegateBackingValue
+                }
+                _modify {
+                    delegateBackingLock.lock()
+                    defer {
+                        delegateBackingLock.unlock()
+                    }
+
+                    yield &delegateBackingValue
+                }
+            }
+
+            private nonisolated(unsafe) weak var delegateBackingValue: Delegate? = someDelegate
+
+            private let delegateBackingLock = NSLock()
+            """,
+            macros: testMacros
+        )
+    }
+
+    func test_WeakVariable_OptionalGenericSyntax_KeepsOwnership() throws {
+        assertMacroExpansion(
+            """
+            @ThreadSafe
+            public weak var delegate: Optional<Delegate>
+            """,
+            expandedSource: """
+            public weak var delegate: Optional<Delegate> {
+                get {
+                    delegateBackingLock.lock()
+                    defer {
+                        delegateBackingLock.unlock()
+                    }
+
+                    return delegateBackingValue
+                }
+                _modify {
+                    delegateBackingLock.lock()
+                    defer {
+                        delegateBackingLock.unlock()
+                    }
+
+                    yield &delegateBackingValue
+                }
+            }
+
+            private nonisolated(unsafe) weak var delegateBackingValue: Optional<Delegate> = nil
+
+            private let delegateBackingLock = NSLock()
+            """,
+            macros: testMacros
+        )
+    }
+
+    func test_UnownedVariable_KeepsOwnership_WithoutInitialValue() throws {
+        assertMacroExpansion(
+            """
+            @ThreadSafe
+            public unowned var owner: Owner
+            """,
+            expandedSource: """
+            public unowned var owner: Owner {
+                get {
+                    ownerBackingLock.lock()
+                    defer {
+                        ownerBackingLock.unlock()
+                    }
+
+                    return ownerBackingValue
+                }
+                _modify {
+                    ownerBackingLock.lock()
+                    defer {
+                        ownerBackingLock.unlock()
+                    }
+
+                    yield &ownerBackingValue
+                }
+            }
+
+            private nonisolated(unsafe) unowned var ownerBackingValue: Owner
+
+            private let ownerBackingLock = NSLock()
+            """,
+            macros: testMacros
+        )
+    }
+
+    func test_UnownedUnsafeVariable_KeepsOwnership_WithoutInitialValue() throws {
+        assertMacroExpansion(
+            """
+            @ThreadSafe
+            public unowned(unsafe) var owner: Owner
+            """,
+            expandedSource: """
+            public unowned(unsafe) var owner: Owner {
+                get {
+                    ownerBackingLock.lock()
+                    defer {
+                        ownerBackingLock.unlock()
+                    }
+
+                    return ownerBackingValue
+                }
+                _modify {
+                    ownerBackingLock.lock()
+                    defer {
+                        ownerBackingLock.unlock()
+                    }
+
+                    yield &ownerBackingValue
+                }
+            }
+
+            private nonisolated(unsafe) unowned(unsafe) var ownerBackingValue: Owner
+
+            private let ownerBackingLock = NSLock()
+            """,
+            macros: testMacros
+        )
+    }
+
+    func test_OptionalWithoutInitializer_DefaultsToNil() throws {
+        assertMacroExpansion(
+            """
+            @ThreadSafe
+            public var value: String?
+            """,
+            expandedSource: """
+            public var value: String? {
+                get {
+                    valueBackingLock.lock()
+                    defer {
+                        valueBackingLock.unlock()
+                    }
+
+                    return valueBackingValue
+                }
+                _modify {
+                    valueBackingLock.lock()
+                    defer {
+                        valueBackingLock.unlock()
+                    }
+
+                    yield &valueBackingValue
+                }
+            }
+
+            private nonisolated(unsafe) var valueBackingValue: String? = nil
+
+            private let valueBackingLock = NSLock()
             """,
             macros: testMacros
         )

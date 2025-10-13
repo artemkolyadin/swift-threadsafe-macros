@@ -14,27 +14,29 @@ extension ThreadSafeMacro: AccessorMacro {
         guard let varDeclaration = validate(declaration, node: node, addingDiagnosticsTo: context) else {
             return []
         }
-        let backingTuple = backingTupleName(varDeclaration.identifier.with(\.trailingTrivia, []))
+        let identifier = varDeclaration.identifier.with(\.trailingTrivia, [])
+        let backingValue = backingValueName(identifier)
+        let backingLock = backingLockName(identifier)
 
         return [
             """
             get {
-                \(backingTuple).lock.lock()
+                \(backingLock).lock()
                 defer {
-                    \(backingTuple).lock.unlock()
+                    \(backingLock).unlock()
                 }
 
-                return \(backingTuple).value
+                return \(backingValue)
             }
             """,
             """
             _modify {
-                \(backingTuple).lock.lock()
-                defer { 
-                    \(backingTuple).lock.unlock()
+                \(backingLock).lock()
+                defer {
+                    \(backingLock).unlock()
                 }
 
-                yield &\(backingTuple).value
+                yield &\(backingValue)
             }
             """,
         ]
@@ -58,12 +60,20 @@ extension ThreadSafeMacro: PeerMacro {
             return []
         }
 
-        let name = backingTupleName(varDeclaration.identifier)
+        let valueName = backingValueName(varDeclaration.identifier)
+        let lockName = backingLockName(varDeclaration.identifier)
+        let ownership = varDeclaration.ownershipModifier.map { "\($0) " } ?? ""
+
+        // An unowned reference has no sensible default, so it's left for the initializer to set.
+        let valueDecl: DeclSyntax = if varDeclaration.isUnowned {
+            "private nonisolated(unsafe) \(raw: ownership)var \(valueName): \(varDeclaration.type)"
+        } else {
+            "private nonisolated(unsafe) \(raw: ownership)var \(valueName): \(varDeclaration.type) = \(varDeclaration.value)"
+        }
 
         return [
-            """
-            private nonisolated(unsafe) var \(name): (value: \(varDeclaration.type), lock: NSLock) = (\(varDeclaration.value), NSLock())
-            """,
+            valueDecl,
+            "private let \(lockName) = NSLock()",
         ]
     }
 }
@@ -88,6 +98,17 @@ extension ThreadSafeMacro {
         var identifier: TokenSyntax {
             decl.identifier
         }
+
+        /// `weak`, `unowned` or `unowned(unsafe)`, if the property has one.
+        var ownershipModifier: String? {
+            decl.modifiers
+                .first { $0.name.tokenKind == .keyword(.weak) || $0.name.tokenKind == .keyword(.unowned) }?
+                .trimmedDescription
+        }
+
+        var isUnowned: Bool {
+            decl.isUnowned
+        }
     }
 
     private static func validate(
@@ -108,7 +129,13 @@ extension ThreadSafeMacro {
             context?.addDiagnostics(from: Error.typeNotProvided, node: node)
             return nil
         }
-        guard let value = decl.bindings.first?.initializer?.value else {
+
+        let value: ExprSyntax
+        if let initialValue = decl.bindings.first?.initializer?.value {
+            value = initialValue
+        } else if isOptional(type) || decl.isUnowned {
+            value = "nil"
+        } else {
             context?.addDiagnostics(from: Error.valueNotProvided, node: node)
             return nil
         }
@@ -120,8 +147,22 @@ extension ThreadSafeMacro {
         )
     }
 
-    private static func backingTupleName(_ identifier: TokenSyntax) -> IdentifierPatternSyntax {
-        IdentifierPatternSyntax(identifier: "_\(identifier)")
+    private static func backingValueName(_ identifier: TokenSyntax) -> IdentifierPatternSyntax {
+        IdentifierPatternSyntax(identifier: "\(identifier)BackingValue")
+    }
+
+    private static func backingLockName(_ identifier: TokenSyntax) -> IdentifierPatternSyntax {
+        IdentifierPatternSyntax(identifier: "\(identifier)BackingLock")
+    }
+
+    private static func isOptional(_ type: TypeSyntax) -> Bool {
+        if type.is(OptionalTypeSyntax.self) {
+            return true
+        }
+        if let identifier = type.as(IdentifierTypeSyntax.self), identifier.name.text == "Optional" {
+            return true
+        }
+        return false
     }
 }
 
