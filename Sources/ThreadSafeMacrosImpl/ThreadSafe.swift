@@ -73,7 +73,7 @@ extension ThreadSafeMacro: PeerMacro {
 
         return [
             valueDecl,
-            "private let \(lockName) = NSLock()",
+            "private let \(lockName) = ThreadSafeMacros.ThreadSafeLock()",
         ]
     }
 }

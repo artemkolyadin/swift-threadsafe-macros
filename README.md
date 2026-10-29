@@ -62,7 +62,7 @@ final class BankAccount: Sendable {
         }
     }
     private nonisolated(unsafe) var transactionsBackingValue: [String] = []
-    private let transactionsBackingLock = NSLock()
+    private let transactionsBackingLock = ThreadSafeMacros.ThreadSafeLock()
 
     init(balance: Double, transactions: [String]) {
         self.balance = balance
@@ -172,49 +172,9 @@ When building a project using this macro via `xcodebuild`, especially when targe
 
 ## Equality in Tests
 
-Both `@ThreadSafe` and `@Atomic` introduce hidden helper properties (like locks), which may cause equality checks between two seemingly identical objects to fail. That’s because the default `NSLock` doesn’t conform to `Equatable` in a meaningful way—each instance points to a different memory address.
+Both `@ThreadSafe` and `@Atomic` add a hidden lock next to the value. With a plain `NSLock` that breaks comparisons in tests: every lock is a distinct object, so two otherwise identical values are never equal under synthesized `Equatable`, and `dump`/`Mirror`-based comparisons see different lock addresses.
 
-### Recommended Solution:
-
-1. Define a custom lock wrapper:
-
-```swift
-import Foundation
-
-/// Custom wrapper over NSLock that always compares as equal.
-public final class ThreadSafeLock: Equatable, Sendable {
-    private let _lock = NSLock()
-
-    public init() {}
-
-    public func lock() {
-        _lock.lock()
-    }
-
-    public func unlock() {
-        _lock.unlock()
-    }
-
-    public static func == (_: ThreadSafeLock, _: ThreadSafeLock) -> Bool {
-        true
-    }
-}
-
-extension ThreadSafeLock: CustomReflectable {
-    /// Provides a stable mirror value for ThreadSafeLock, 
-    /// so that objects containing it can be reliably compared via Swift Reflection in tests.
-    /// This helps avoid test failures when using Mirror(reflecting:) to compare object structures.
-    static nonisolated(unsafe) private let mirror = Mirror(reflecting: "ThreadSafeLock")
-    
-    public var customMirror: Mirror { ThreadSafeLock.mirror }
-}
-```
-
-2. Place this code in a base framework that's commonly imported.
-3. In your macro implementation, replace `NSLock` with `ThreadSafeLock`.
-4. In files that use `@ThreadSafe`, import the framework where `ThreadSafeLock` is defined.
-
-This avoids test failures due to lock inequality while preserving concurrency guarantees.
+That's why the macro uses `ThreadSafeLock`, a thin wrapper over `NSLock` that ships with the package. All instances compare as equal, hash the same and have the same reflection, so the lock never shows up as a difference. It comes from the same `ThreadSafeMacros` module you already import to use the macro, so no extra imports are needed.
 
 ---
 

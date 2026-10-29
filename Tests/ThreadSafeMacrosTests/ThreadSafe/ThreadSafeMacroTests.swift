@@ -36,7 +36,7 @@ final class ThreadSafeMacroTests: XCTestCase {
 
             private nonisolated(unsafe) var resultBackingValue: Result<[Int], MockError> = .failure(MockError())
 
-            private let resultBackingLock = NSLock()
+            private let resultBackingLock = ThreadSafeMacros.ThreadSafeLock()
             """,
             macros: testMacros
         )
@@ -70,7 +70,7 @@ final class ThreadSafeMacroTests: XCTestCase {
 
             private nonisolated(unsafe) var resultBackingValue: Result<[Int], MockError> = Result<[Int], MockError>.failure(MockError())
 
-            private let resultBackingLock = NSLock()
+            private let resultBackingLock = ThreadSafeMacros.ThreadSafeLock()
             """,
             macros: testMacros
         )
@@ -104,7 +104,7 @@ final class ThreadSafeMacroTests: XCTestCase {
 
             private nonisolated(unsafe) weak var delegateBackingValue: Delegate? = nil
 
-            private let delegateBackingLock = NSLock()
+            private let delegateBackingLock = ThreadSafeMacros.ThreadSafeLock()
             """,
             macros: testMacros
         )
@@ -138,7 +138,7 @@ final class ThreadSafeMacroTests: XCTestCase {
 
             private nonisolated(unsafe) weak var delegateBackingValue: Delegate? = nil
 
-            private let delegateBackingLock = NSLock()
+            private let delegateBackingLock = ThreadSafeMacros.ThreadSafeLock()
             """,
             macros: testMacros
         )
@@ -172,7 +172,7 @@ final class ThreadSafeMacroTests: XCTestCase {
 
             private nonisolated(unsafe) weak var delegateBackingValue: Delegate? = someDelegate
 
-            private let delegateBackingLock = NSLock()
+            private let delegateBackingLock = ThreadSafeMacros.ThreadSafeLock()
             """,
             macros: testMacros
         )
@@ -206,7 +206,7 @@ final class ThreadSafeMacroTests: XCTestCase {
 
             private nonisolated(unsafe) weak var delegateBackingValue: Optional<Delegate> = nil
 
-            private let delegateBackingLock = NSLock()
+            private let delegateBackingLock = ThreadSafeMacros.ThreadSafeLock()
             """,
             macros: testMacros
         )
@@ -240,7 +240,7 @@ final class ThreadSafeMacroTests: XCTestCase {
 
             private nonisolated(unsafe) unowned var ownerBackingValue: Owner
 
-            private let ownerBackingLock = NSLock()
+            private let ownerBackingLock = ThreadSafeMacros.ThreadSafeLock()
             """,
             macros: testMacros
         )
@@ -274,7 +274,7 @@ final class ThreadSafeMacroTests: XCTestCase {
 
             private nonisolated(unsafe) unowned(unsafe) var ownerBackingValue: Owner
 
-            private let ownerBackingLock = NSLock()
+            private let ownerBackingLock = ThreadSafeMacros.ThreadSafeLock()
             """,
             macros: testMacros
         )
@@ -308,7 +308,7 @@ final class ThreadSafeMacroTests: XCTestCase {
 
             private nonisolated(unsafe) var valueBackingValue: String? = nil
 
-            private let valueBackingLock = NSLock()
+            private let valueBackingLock = ThreadSafeMacros.ThreadSafeLock()
             """,
             macros: testMacros
         )
