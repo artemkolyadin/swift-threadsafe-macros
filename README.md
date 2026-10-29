@@ -123,7 +123,7 @@ You can add `@ThreadSafe` to your project using Swift Package Manager.
 In your `Package.swift` file:
 
 ```swift
-.package(url: "https://github.com/artemkolyadin/swift-threadsafe-macro.git", from: "1.0.0")
+.package(url: "https://github.com/artemkolyadin/swift-threadsafe-macros.git", from: "1.1.0")
 ```
 
 Then import it:
@@ -136,7 +136,7 @@ internal import ThreadSafeMacros
 
 ## Requirements
 
-* Swift 5.9 or later
+* Swift 6.0 or later (Xcode 16+)
 
 ---
 
